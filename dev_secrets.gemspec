@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.version     = DevSecrets::VERSION
   s.authors     = ["Jesse Kipp"]
   s.email       = ["jesse@toomanybees.com"]
-  # s.homepage    = "TODO"
+  s.homepage    = "https://github.com/TooManyBees/dev_secrets"
   s.summary     = "Rails 5.1 encrypted secrets in dev"
   s.description = <<-DESC
 Commit multiple encrypted secrets files and decrypt only the one
