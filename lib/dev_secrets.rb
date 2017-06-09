@@ -1,7 +1,9 @@
 module DevSecrets
+  GLOB = "secrets*.yml{,.enc}"
+  GLOB_ENC = "secrets*.yml.enc"
   class Railtie < ::Rails::Railtie
     initializer "dev_secrets.set_secrets_glob_pattern" do |app|
-      app.config.paths["config/secrets"].glob = "secrets*.yml{,.enc}"
+      app.config.paths["config/secrets"].glob = DevSecrets::GLOB
     end
   end
 end
@@ -39,7 +41,40 @@ module Rails
     alias parse_original parse
     alias parse _dev_secrets_parse
 
+    def _dev_secrets_read_for_editing
+      path, contents = _dev_secrets_read_first
+      tmp_path = File.join(Dir.tmpdir, File.basename(path))
+      IO.binwrite(tmp_path, contents)
+
+      puts "Editing #{path}"
+      yield tmp_path
+
+      _dev_secrets_write(path, File.read(tmp_path))
+    ensure
+      FileUtils.rm(tmp_path) if File.exist?(tmp_path)
+    end
+
+    alias read_for_editing_original read_for_editing
+    alias read_for_editing _dev_secrets_read_for_editing
+
     private
+
+    def _dev_secrets_read_first
+      return_val = nil
+      Dir.glob(@root.join("config", DevSecrets::GLOB_ENC)).each do |path|
+        begin
+          return_val = [path, decrypt(IO.binread(path))]
+          break
+        rescue ActiveSupport::MessageEncryptor::InvalidMessage
+        end
+      end
+      return_val or raise ActiveSupport::MessageEncryptor::InvalidMessage # Nothing decrypted correctly
+    end
+
+    def _dev_secrets_write(path, contents)
+      IO.binwrite("#{path}.tmp", encrypt(contents))
+      FileUtils.mv("#{path}.tmp", path)
+    end
 
     def _dev_secrets_parse_file(path, env, all_secrets)
       require "erb"
